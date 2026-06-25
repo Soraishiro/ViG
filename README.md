@@ -48,8 +48,8 @@ Implementation of a dual-enhancement framework adapting [GRIT](https://arxiv.org
 ### Install
 
 ```shell
-git clone https://github.com/Soraishiro/ViG.git
-cd ViG
+git clone https://github.com/Soraishiro/Image_Captioning.git
+cd Image_Captioning
 
 python -m venv venv
 source venv/bin/activate
