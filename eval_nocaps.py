@@ -35,8 +35,8 @@ def main(gpu, config):
         print(f'model missing:{len(missing)} model unexpected:{len(unexpected)}')
     model = DDP(model, device_ids=[gpu], find_unused_parameters=True, broadcast_buffers=False)
     model.module.cached_features = False
-    data_path = '/home/quang/datasets/nocaps/updown-baseline/data'
-    ann_path = os.path.join(data_path, 'nocaps/annotations/nocaps_val_image_info.json')
+    data_path = os.environ.get('NOCAPS_DATA_ROOT', '')
+    ann_path = os.path.join(data_path, 'annotations/nocaps_val_image_info.json')
     root_path = os.path.join(data_path, 'val')
     vocab = Vocab(vocab_path=config.dataset.vocab_path)
     dataset = NocapsDataset(vocab=vocab, ann_path=ann_path, root=root_path, pad_idx=3)

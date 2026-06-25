@@ -1,6 +1,6 @@
 # image captioning
 
-Implementation of a dual-enhancement framework adapting [GRIT](https://arxiv.org/abs/2207.09666) for Vietnamese image captioning. The framework inserts two lightweight modules into the frozen GRIT visual stack: **Residual Relation Memory (RRM)** for spatial-relational reasoning, and **Local Cultural Query Memory (LCQM)** for culturally-grounded concept learning.
+An image captioning framework built on [GRIT](https://arxiv.org/abs/2207.09666) with two additional modules: **Residual Relation Memory (RRM)** for spatial-relational reasoning, and **Local Cultural Query Memory (LCQM)** for culturally-grounded concept learning.
 
 ## Project Structure
 
