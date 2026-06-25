@@ -65,10 +65,18 @@ cd ../..
 
 ### Checkpoints
 
-Set environment variable to use a pretrained checkpoint:
+Available pretrained checkpoints:
+
+| Model                | Link                   |
+| -------------------- | ---------------------- |
+| full model           | `ckpts/full_model.pth` |
+| model with RRM only  | `ckpts/rrm.pth`        |
+| model with LCQM only | `ckpts/lcqm.pth`       |
+
+Set the path to use:
 
 ```shell
-export CHECKPOINT=ckpts/model.pth
+export CHECKPOINT=ckpts/full_model.pth
 ```
 
 ### Data Preparation
