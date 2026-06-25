@@ -65,7 +65,7 @@ cd ../..
 
 ### Checkpoints
 
-Available pretrained checkpoints:
+The pretrained models train, evaluate and inference on [Ktvic: A vietnamese image captioning dataset on the life domain](https://doi.org/10.48550/arXiv.2401.08100) dataset. Available pretrained checkpoints:
 
 | Model                | Link                   |
 | -------------------- | ---------------------- |
@@ -164,4 +164,4 @@ python inference_caption.py \
 
 ## Acknowledgement
 
-This work builds upon [GRIT](https://github.com/davidnvq/grit), [Swin Transformer](https://github.com/microsoft/Swin-Transformer), [Deformable DETR](https://github.com/fundamentalvision/Deformable-DETR), and [M2-Transformer](https://github.com/aimagelab/meshed-memory-transformer).
+This work builds upon [GRIT](https://github.com/davidnvq/grit), [Swin Transformer](https://github.com/microsoft/Swin-Transformer), [Deformable DETR](https://github.com/fundamentalvision/Deformable-DETR), and [M2-Transformer](https://github.com/aimagelab/meshed-memory-transformer). We sincerely thank the authors of these open source projects.
