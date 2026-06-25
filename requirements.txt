@@ -1,0 +1,15 @@
+pycocotools
+tensorboard
+tqdm
+matplotlib 
+h5py 
+nltk
+einops
+hydra-core>=1.3.2
+spacy
+timm
+lmdb
+mlflow
+psutil
+wandb
+sentencepiece

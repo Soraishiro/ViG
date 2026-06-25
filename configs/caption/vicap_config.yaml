@@ -1,0 +1,216 @@
+exp:
+  seed: 42
+  name: vicap_baseline3
+  rank: 0
+  ngpus_per_node: 1
+  world_size: 1
+  checkpoint: "${oc.env:KTVIC_CAPTION_CHECKPOINT,}"
+  eval: False
+  resume: False
+  resume_checkpoint: '${oc.env:KTVIC_RESUME_CHECKPOINT,""}'
+  eval_checkpoint: '${oc.env:KTVIC_EVAL_CHECKPOINT,""}'
+  auto_resume_latest: false
+  phase_plan: "${oc.env:KTVIC_PHASE_PLAN,xe_only}"
+  selection_split: "${oc.env:KTVIC_SELECTION_SPLIT,valid}"
+  training_regime: "full_xe" # set per-run by training_regimes.py registry; inert default for schema parity
+  init_mode: "full_model" # set per-run by registry; inert (vig warm-starts via exp.checkpoint)
+  scst_seed_checkpoint: '${oc.env:KTVIC_SCST_SEED_CHECKPOINT,""}'
+  max_train_batches: 0
+  stop_after_train_epoch: false
+  preflight_only: false
+  write_trace: true
+  trace_every_n_steps: 20
+  run_dir: outputs/${exp.name}
+
+dataset:
+  overfit: False
+  max_train_items: 0
+  max_valid_items: 0
+  max_test_items: 0
+  ann_root: "${oc.env:DATA_ROOT}/annotations"
+  img_root: "${oc.env:DATA_ROOT}"
+  hdf5_path: "${oc.env:DATA_ROOT}/all_splits.h5" # this is used for freezed extractor; fast to train.
+  vocab_path: "${oc.env:DATA_ROOT}/annotations/vocab.json"
+  use_gri_feat: ${model.use_gri_feat}
+  use_reg_feat: ${model.use_reg_feat}
+
+  # Split mode: "full" (100% train) | "dev_select" (90/10, Phase A)
+  # Eliminates manual KTVIC_TRAIN_JSON / KTVIC_VALID_JSON env vars.
+  # See core/issues/[Issue] dataset_split_mode_path_confusion_20260610.md
+  split_mode: "full"
+  dev_split: "seed42_valid10"
+
+  transform_cfg:
+    size: [384, 640] # (h, w)
+    resize_name: maxwh # normal, minmax, maxwh; maxwh is computationally friendly for training
+    randaug: True
+
+model:
+  use_gri_feat: True
+  use_reg_feat: True
+  grid_feat_dim: 1024
+  frozen_stages: 2
+  beam_size: 5
+  beam_len: 20
+  dropout: 0.2
+  attn_dropout: 0.2
+
+  vocab_size: 10201
+  max_len: 54
+  pad_idx: 1
+  bos_idx: 2
+  eos_idx: 3
+  d_model: 512
+  n_heads: 8
+
+  grid_net:
+    n_memories: 1
+    n_layers: 3
+
+  cap_generator:
+    decoder_name: parallel # sequential concat
+    n_layers: 3
+
+  detector:
+    checkpoint: ""
+    d_model: 512
+    dim_feedforward: 1024
+    num_heads: 8
+    num_layers: 6
+    num_levels: 4
+    num_points: 4
+    num_queries: 150
+    num_classes: 1849
+    dropout: 0.1
+    activation: "relu"
+    return_intermediate: True
+    with_box_refine: True
+
+optimizer:
+  warmup_init_lr: 5e-6
+  min_lr: 5e-6
+  xe_lr: 5e-6 # fixed to match KTVIC Baseline 3 setup.
+  sc_lr: 5e-6
+  xe_backbone_lr: 5e-6
+  sc_backbone_lr: 5e-6
+  xe_detector_lr: 5e-6 # registry-canonical detector LR (== backbone_lr for baseline3); schema parity
+  sc_detector_lr: 5e-6
+  weight_decay: 0.01
+  beta_1: 0.9
+  beta_2: 0.99
+  batch_size: 16
+  num_workers: 2
+  freezing_xe_epochs: 0
+  freezing_sc_epochs: 0
+  finetune_xe_epochs: 10
+  finetune_sc_epochs: 0
+  freeze_detector: False
+  freeze_backbone: False
+  freeze_grid: False # registry emits this; inert in vig (set_trainability uses freeze_grit), schema parity
+  # --- ViG additions (unused unless a ViG run enables model_vig; base = GRIT baseline) ---
+  vig_lr: 5.0e-5 # new-module LR tier; separate optimizer, no cosine scheduler (ViG_04 I3)
+  freeze_grit: False # True freezes cap_generator+grid_net for ViG (set per ViG run, X1)
+  grad_clip: 0.1 # max-norm gradient clipping (ablations_vig.md §E)
+
+tracking:
+  use_mlflow: true
+  use_wandb: false
+  project_name: "ktvic-baseline3"
+  run_name: "grit-vicap-baseline3"
+  run_name_suffix: '${oc.env:TRACKING_RUN_NAME_SUFFIX,""}'
+  use_run_dir_name_suffix: true
+  mlflow_tracking_uri: '${oc.env:MLFLOW_TRACKING_URI,""}'
+  mlflow_registry_uri: '${oc.env:MLFLOW_REGISTRY_URI,""}'
+  mlflow_experiment_name: '${oc.env:MLFLOW_EXPERIMENT_NAME,""}'
+  mlflow_artifact_location: '${oc.env:MLFLOW_ARTIFACT_LOCATION,""}'
+  enable_mlflow_model_registry: false
+  mlflow_registered_model_name: '${oc.env:MLFLOW_REGISTERED_MODEL_NAME,""}'
+  mlflow_registered_model_alias: '${oc.env:MLFLOW_REGISTERED_MODEL_ALIAS,""}'
+  mlflow_model_registration_await_secs: 300
+  wandb_project_name: '${oc.env:WANDB_PROJECT,""}'
+  wandb_entity: '${oc.env:WANDB_ENTITY,""}'
+  wandb_group: '${oc.env:WANDB_GROUP,""}'
+  wandb_job_type: "${oc.env:WANDB_JOB_TYPE,baseline3}"
+  wandb_tags_csv: '${oc.env:WANDB_TAGS,""}'
+  wandb_dir: '${oc.env:WANDB_DIR,""}'
+  step_metrics_every_n_steps: 5
+  enable_system_metrics: true
+  system_metrics_sampling_interval_sec: 10
+  system_metrics_samples_before_logging: 1
+  enable_nvidia_smi_metrics: true
+  log_gradient_norm: true
+  sample_table_size_per_split: 4
+  sample_table_batch_size: 4
+  checkpoint_missing_key_alert_threshold: 0
+  checkpoint_unexpected_key_alert_threshold: 0
+  loss_plateau_epochs: 3
+  loss_plateau_min_delta: 1e-4
+  caption_truncation_min_tokens: 3
+  caption_truncation_alert_rate: 0.25
+  unk_alert_rate: 0.10
+  duplicate_ngram_alert_rate: 0.25
+  empty_caption_alert_rate: 0.10
+  vietnamese_diacritic_min_rate: 0.30
+  gpu_memory_alert_utilization: 0.95
+
+# === ViG module schema (disabled by default → vicap_config reproduces plain GRIT) ===
+# Enabled per stage via ViG run overrides: S1=rrm, S2=lcqm, S3=modulator (ViG_03 rollout).
+model_vig:
+  rrm:
+    enabled: false
+    n_layers: 1
+    n_heads: 8
+    d_p: 64
+    phi_geo_dim: 10
+    lambda_geo: 1.0
+    lambda_vis: 1.0
+    alpha_rel_init: 0.0
+    gate_bias_init: -5.0 # fc_alpha3 bias canonical: σ(-5)≈0.007 near-off at init (Review 2 H3)
+    geo_mlp_hidden: 128 # hidden dim for geometry MLP (RelationGeometryBias)
+    dropout: 0.2 # dropout for RelationEncoderLayer
+    use_trigonometric_embedding: false # true => DLCT-style sin/cos expansion (fallback if MLP fails)
+    trig_wave_len: 1000 # wavelength for trigonometric embedding (only if use_trigonometric_embedding)
+    use_sqrt3_norm: false # true => /sqrt(3) variance-preserving for 3-branch fusion (default /sqrt(2))
+  lcqm:
+    enabled: false
+    k_loc: 16
+    n_layers: 1
+    n_heads: 8
+    use_rel_input: false
+    stop_grad_rel: false
+    type_emb_std: 0.02
+    slot_init_std: 0.02
+    out_scale: 0.01
+    beta_loc_init: 0.0
+    gate_bias_init: -1.0 # fc_alpha4 LCQM gate: sigma(-1)≈0.27 (was hardcoded -5.0, silent gate death 2026-06-18)
+    gate_bias_start: -5.0 # schedule: start bias (epoch 0, GRIT identity)
+    gate_bias_end: -1.0 # schedule: end bias (sigma≈0.27, gate open)
+    gate_schedule_epochs: 5 # number of epochs to ramp from start→end
+    lambda_gate: 0.0 # auxiliary gate-openness loss coefficient (0=off, 0.01=light)
+    gate_target_openness: 0.1 # minimum target gate openness for L_gate
+    use_heuristic_bias: false # DeepSeek-V3 style non-differentiable bias (epoch-level)
+    heuristic_step_size: 0.01 # bias adjustment step per epoch
+    b_m: -5.0
+    modulator:
+      enabled: false
+      b_eta: -3.0
+  fusion:
+    beta_rel_init: 0.0
+loss_vig:
+  lambda_loc: 0.5 # CR2 confirmed: all actual runs use 0.5
+  lambda_route: 0.1
+  lambda_div: 0.01
+  tau: 0.07
+  warmup_epochs: 2
+  ramp_epochs: 3
+  eps: 1.0e-8
+
+hydra:
+  run:
+    dir: ${exp.run_dir}
+  output_subdir: ./ # directory for saving the yaml configs
+  job:
+    config:
+      override_dirname:
+        exclude_keys:
+          - exp.name
