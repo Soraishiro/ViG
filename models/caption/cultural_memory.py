@@ -77,5 +77,5 @@ class CulturalQueryMemory(nn.Module):
             return (C_loc, C_proj, p_attn)
         return (C_loc, C_proj)
 
-    def _init_vig_weights(self) -> None:
+    def _init_ext_weights(self) -> None:
         self._init_weights(0.02, 0.02)

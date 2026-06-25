@@ -1,6 +1,6 @@
-# ViG: Grounded Adaptation of Transformer-Based Models for Low-Resource Vietnamese Image Captioning
+# image captioning
 
-Implementation of **ViG** — a dual-enhancement framework adapting [GRIT](https://arxiv.org/abs/2207.09666) for Vietnamese image captioning. ViG inserts two lightweight modules into the frozen GRIT visual stack: **Residual Relation Memory (RRM)** for spatial-relational reasoning, and **Local Cultural Query Memory (LCQM)** for culturally-grounded concept learning. This serves as the official implementation for undergraduate thesis (CS505) at the University of Information Technology - VNU-HCM.
+Implementation of a dual-enhancement framework adapting [GRIT](https://arxiv.org/abs/2207.09666) for Vietnamese image captioning. The framework inserts two lightweight modules into the frozen GRIT visual stack: **Residual Relation Memory (RRM)** for spatial-relational reasoning, and **Local Cultural Query Memory (LCQM)** for culturally-grounded concept learning.
 
 ## Project Structure
 
@@ -21,7 +21,7 @@ Implementation of **ViG** — a dual-enhancement framework adapting [GRIT](https
 ├── engine/  
 ├── datasets/caption/  
 ├── configs/caption/
-│ ├── vicap_config.yaml  
+│ ├── default_config.yaml  
 │ └── custom_config.yaml  
 ├── tools/  
 │ ├── mine_local_phrases.py  
@@ -29,12 +29,12 @@ Implementation of **ViG** — a dual-enhancement framework adapting [GRIT](https
 │ └── adapt_vocab_format.py  
 ├── utils/  
 ├── data/  
-├── train_vicap.py  
-├── vicap_dataset.py  
+├── train.py  
+├── dataset.py  
 ├── training_regimes.py  
 ├── eval_caption.py  
 ├── inference_caption.py  
-└── official_test_vicap.py
+└── eval.py
 ```
 
 ## Setup
@@ -65,17 +65,11 @@ cd ../..
 
 ### Checkpoints
 
-The checkpoints below were trained on **KTVIC** dataset. Set environment variable to use:
+Set environment variable to use a pretrained checkpoint:
 
 ```shell
-export KTVIC_CAPTION_CHECKPOINT=ckpts/full_vig.pth
+export CHECKPOINT=ckpts/model.pth
 ```
-
-| Checkpoint                     | Description                 | Link                  |
-| ------------------------------ | --------------------------- | --------------------- |
-| ViG full (RRM+LCQM, stop-grad) | Full ViG with stop-gradient | `ckpts/full_vig.pth`  |
-| ViG LCQM-only                  | ViG with LCQM only          | `ckpts/lcqm_only.pth` |
-| ViG RRM-only                   | ViG with RRM only           | `ckpts/rrm_only.pth`  |
 
 ### Data Preparation
 
@@ -92,7 +86,7 @@ path/to/dataset/
 Set the path via environment variable:
 
 ```shell
-export KTVIC_ROOT=/path/to/dataset
+export DATA_ROOT=/path/to/dataset
 ```
 
 ### Training
@@ -100,25 +94,25 @@ export KTVIC_ROOT=/path/to/dataset
 Enable components individually or combined:
 
 ```shell
-# GRIT baseline (no ViG modules)
-python train_vicap.py model_vig.rrm.enabled=false model_vig.lcqm.enabled=false
+# baseline (no additional modules)
+python train.py model_ext.rrm.enabled=false model_ext.lcqm.enabled=false
 
 # RRM only
-python train_vicap.py \
-    model_vig.rrm.enabled=true \
+python train.py \
+    model_ext.rrm.enabled=true \
     optimizer.freeze_grit=true \
 
 # LCQM only (requires phrase data — see Phrase Mining below)
-python train_vicap.py \
-    model_vig.lcqm.enabled=true \
+python train.py \
+    model_ext.lcqm.enabled=true \
     optimizer.freeze_grit=true \
 
-# Full ViG (RRM + LCQM with stop-grad connection)
-python train_vicap.py \
-    model_vig.rrm.enabled=true \
-    model_vig.lcqm.enabled=true \
-    model_vig.lcqm.use_rel_input=true \
-    model_vig.lcqm.stop_grad_rel=true \
+# Full (RRM + LCQM with stop-grad connection)
+python train.py \
+    model_ext.rrm.enabled=true \
+    model_ext.lcqm.enabled=true \
+    model_ext.lcqm.use_rel_input=true \
+    model_ext.lcqm.stop_grad_rel=true \
     optimizer.freeze_grit=true \
 ```
 
@@ -148,7 +142,7 @@ python tools/build_phrase_supervision.py \
 
 ```shell
 export DATA_ROOT=/path/to/dataset
-python official_test_vicap.py exp.checkpoint=path/to/checkpoint.pth
+python eval.py exp.checkpoint=path/to/checkpoint.pth
 ```
 
 ## Inference
@@ -162,4 +156,4 @@ python inference_caption.py \
 
 ## Acknowledgement
 
-ViG builds upon [GRIT](https://github.com/davidnvq/grit), [Swin Transformer](https://github.com/microsoft/Swin-Transformer), [Deformable DETR](https://github.com/fundamentalvision/Deformable-DETR), and [M2-Transformer](https://github.com/aimagelab/meshed-memory-transformer). We sincerely thank the authors of these open source projects.
+This work builds upon [GRIT](https://github.com/davidnvq/grit), [Swin Transformer](https://github.com/microsoft/Swin-Transformer), [Deformable DETR](https://github.com/fundamentalvision/Deformable-DETR), and [M2-Transformer](https://github.com/aimagelab/meshed-memory-transformer).

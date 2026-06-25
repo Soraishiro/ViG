@@ -12,10 +12,10 @@ class Transformer(BaseCaptioner):
     def __init__(self, detector, config=None):
         super(Transformer, self).__init__()
         self.grid_net = GridFeatureNetwork(n_layers=config.model.grid_net.n_layers, d_in=config.model.grid_feat_dim, dropout=config.model.dropout, n_memories=getattr(config.model.grid_net, 'n_memories', 0))
-        _rrm_enabled = hasattr(config, 'model_vig') and hasattr(config.model_vig, 'rrm') and config.model_vig.rrm.enabled
-        _use_sqrt3 = getattr(config.model_vig.rrm, 'use_sqrt3_norm', False) if _rrm_enabled else False
-        _lcqm_enabled = hasattr(config, 'model_vig') and hasattr(config.model_vig, 'lcqm') and config.model_vig.lcqm.enabled
-        self.cap_generator = CaptionGenerator(n_layers=config.model.cap_generator.n_layers, vocab_size=config.model.vocab_size, max_len=config.model.max_len, pad_idx=config.model.pad_idx, dropout=config.model.dropout, cfg=config.model.cap_generator, use_relation_branch=_rrm_enabled, use_sqrt3_norm=_use_sqrt3, use_local_cultural_branch=_lcqm_enabled, use_eta_modulator=_lcqm_enabled and getattr(config.model_vig.lcqm, 'modulator', None) is not None and getattr(config.model_vig.lcqm.modulator, 'enabled', False), b_eta=float(getattr(getattr(config.model_vig.lcqm, 'modulator', None), 'b_eta', -3.0) if _lcqm_enabled else -3.0), gate_bias_init_lcqm=float(getattr(config.model_vig.lcqm, 'gate_bias_init', -1.0) if _lcqm_enabled else -1.0))
+        _rrm_enabled = hasattr(config, 'model_ext') and hasattr(config.model_ext, 'rrm') and config.model_ext.rrm.enabled
+        _use_sqrt3 = getattr(config.model_ext.rrm, 'use_sqrt3_norm', False) if _rrm_enabled else False
+        _lcqm_enabled = hasattr(config, 'model_ext') and hasattr(config.model_ext, 'lcqm') and config.model_ext.lcqm.enabled
+        self.cap_generator = CaptionGenerator(n_layers=config.model.cap_generator.n_layers, vocab_size=config.model.vocab_size, max_len=config.model.max_len, pad_idx=config.model.pad_idx, dropout=config.model.dropout, cfg=config.model.cap_generator, use_relation_branch=_rrm_enabled, use_sqrt3_norm=_use_sqrt3, use_local_cultural_branch=_lcqm_enabled, use_eta_modulator=_lcqm_enabled and getattr(config.model_ext.lcqm, 'modulator', None) is not None and getattr(config.model_ext.lcqm.modulator, 'enabled', False), b_eta=float(getattr(getattr(config.model_ext.lcqm, 'modulator', None), 'b_eta', -3.0) if _lcqm_enabled else -3.0), gate_bias_init_lcqm=float(getattr(config.model_ext.lcqm, 'gate_bias_init', -1.0) if _lcqm_enabled else -1.0))
         self.config = config
         self.bos_idx = config.model.bos_idx
         self.use_reg_feat = config.model.use_reg_feat
@@ -24,9 +24,9 @@ class Transformer(BaseCaptioner):
         self._capture_diagnostics = False
         self._diag_buffer = {}
         if _rrm_enabled and (not self.use_reg_feat):
-            raise RuntimeError('model_vig.rrm.enabled=true requires model.use_reg_feat=true.')
+            raise RuntimeError('model_ext.rrm.enabled=true requires model.use_reg_feat=true.')
         if _rrm_enabled and config.model.cap_generator.decoder_name != 'parallel':
-            raise RuntimeError("model_vig.rrm.enabled=true is only supported with cap_generator.decoder_name='parallel'.")
+            raise RuntimeError("model_ext.rrm.enabled=true is only supported with cap_generator.decoder_name='parallel'.")
         if self.use_gri_feat:
             self.register_state('gri_feat', None)
             self.register_state('gri_mask', None)
@@ -41,13 +41,13 @@ class Transformer(BaseCaptioner):
         if _rrm_enabled:
             from models.caption.relation_memory import RelationMemory
             self.rrm = RelationMemory(config)
-            self.rrm._init_vig_weights()
+            self.rrm._init_ext_weights()
         else:
             self.rrm = None
         if _lcqm_enabled:
             from models.caption.cultural_memory import CulturalQueryMemory
-            self.lcqm = CulturalQueryMemory(config.model_vig.lcqm)
-            self.lcqm._init_vig_weights()
+            self.lcqm = CulturalQueryMemory(config.model_ext.lcqm)
+            self.lcqm._init_ext_weights()
             self.register_state('loc_feat', None)
             self.register_state('loc_mask', None)
         else:
@@ -175,7 +175,7 @@ class Transformer(BaseCaptioner):
         if self.rrm is None:
             return vis_inputs.get('reg_boxes') if isinstance(vis_inputs, dict) else None
         if 'reg_boxes' not in vis_inputs or vis_inputs['reg_boxes'] is None:
-            raise RuntimeError(f"model_vig.rrm.enabled=true requires vis_inputs['reg_boxes']; missing in {context}. Cached-feature runs must include reg_boxes.")
+            raise RuntimeError(f"model_ext.rrm.enabled=true requires vis_inputs['reg_boxes']; missing in {context}. Cached-feature runs must include reg_boxes.")
         return vis_inputs['reg_boxes']
 
     def _add_relation_features(self, vis_inputs, context):
@@ -203,7 +203,7 @@ class Transformer(BaseCaptioner):
         vis_inputs['loc_mask'] = loc_feat.new_zeros(B, 1, 1, K).bool()
 
     def _compute_lcqm_inner(self, vis_inputs, return_attn=False):
-        cfg = self.config.model_vig.lcqm
+        cfg = self.config.model_ext.lcqm
         use_rel = getattr(cfg, 'use_rel_input', False)
         region_in = vis_inputs.get('rel_feat') if use_rel and 'rel_feat' in vis_inputs else vis_inputs['reg_feat']
         if use_rel and getattr(cfg, 'stop_grad_rel', False):

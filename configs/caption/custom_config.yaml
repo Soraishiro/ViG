@@ -1,17 +1,17 @@
-# custom_config.yaml — ViG entrypoint config
-# Resolves train_vicap.py:248 @hydra.main(config_name="custom_config")
-# Thin extension of vicap_config.yaml; add per-experiment overrides below.
+# default_config.yaml —  entrypoint config
+# Resolves train_default.py:248 @hydra.main(config_name="custom_config")
+# Thin extension of default_config.yaml; add per-experiment overrides below.
 #
 # Usage:
-#   python train_vicap.py
-#   python train_vicap.py exp.name=vig_s0_baseline
+#   python train_default.py
+#   python train_default.py exp.name=s0_baseline
 #
-# Staged rollout: enable ViG modules via model_vig.rrm.enabled / model_vig.lcqm.enabled
-# See: core/plans/ViG_03_implementation_rollout.md
+# Staged rollout: enable  modules via model_ext.rrm.enabled / model_ext.lcqm.enabled
+# See: core/plans/_03_implementation_rollout.md
 
 defaults:
-  - vicap_config
+  - default_config
   - _self_
 
 exp:
-  name: vig_s0_baseline
+  name: s0_baseline

@@ -8,20 +8,20 @@ from tqdm import tqdm
 from torch.nn import NLLLoss
 import torch.distributed as dist
 from engine.utils import NestedTensor
-from utils.vig_params import is_vig_enabled, is_vig_param
+from utils.ext_params import is_ext_enabled, is_ext_param
 
 def build_optimizers(model, config, mode='xe'):
     model = getattr(model, 'module', model)
     no_decay = ['bias', 'gamma', 'beta']
-    model_parameters = [{'params': [p for n, p in model.named_parameters() if p.requires_grad and (not is_vig_param(n)) and ('detector' not in n) and any((nd in n for nd in no_decay))], 'weight_decay_rate': 0.0}, {'params': [p for n, p in model.named_parameters() if p.requires_grad and (not is_vig_param(n)) and ('detector' not in n) and (not any((nd in n for nd in no_decay)))], 'weight_decay_rate': config.optimizer.weight_decay}]
+    model_parameters = [{'params': [p for n, p in model.named_parameters() if p.requires_grad and (not is_ext_param(n)) and ('detector' not in n) and any((nd in n for nd in no_decay))], 'weight_decay_rate': 0.0}, {'params': [p for n, p in model.named_parameters() if p.requires_grad and (not is_ext_param(n)) and ('detector' not in n) and (not any((nd in n for nd in no_decay)))], 'weight_decay_rate': config.optimizer.weight_decay}]
     backbone_parameters = [{'params': [p for n, p in model.named_parameters() if p.requires_grad and 'detector' in n and any((nd in n for nd in no_decay))], 'weight_decay_rate': 0.0}, {'params': [p for n, p in model.named_parameters() if p.requires_grad and 'detector' in n and (not any((nd in n for nd in no_decay)))], 'weight_decay_rate': config.optimizer.weight_decay}]
-    vig_parameters = [{'params': [p for n, p in model.named_parameters() if p.requires_grad and is_vig_param(n) and any((nd in n for nd in no_decay))], 'weight_decay_rate': 0.0}, {'params': [p for n, p in model.named_parameters() if p.requires_grad and is_vig_param(n) and (not any((nd in n for nd in no_decay)))], 'weight_decay_rate': config.optimizer.weight_decay}]
-    vig_param_count = sum((len(group['params']) for group in vig_parameters))
-    if is_vig_enabled(config) and vig_param_count == 0:
-        raise RuntimeError('ViG is enabled but no trainable ViG parameters were found.')
+    ext_parameters = [{'params': [p for n, p in model.named_parameters() if p.requires_grad and is_ext_param(n) and any((nd in n for nd in no_decay))], 'weight_decay_rate': 0.0}, {'params': [p for n, p in model.named_parameters() if p.requires_grad and is_ext_param(n) and (not any((nd in n for nd in no_decay)))], 'weight_decay_rate': config.optimizer.weight_decay}]
+    ext_param_count = sum((len(group['params']) for group in ext_parameters))
+    if is_ext_enabled(config) and ext_param_count == 0:
+        raise RuntimeError('model is enabled but no trainable ext parameters were found.')
     optimizers = {'model': torch.optim.Adam(model_parameters, lr=getattr(config.optimizer, f'{mode}_lr', config.optimizer.sc_lr), betas=(config.optimizer.beta_1, config.optimizer.beta_2)), 'backbone': torch.optim.Adam(backbone_parameters, lr=getattr(config.optimizer, f'{mode}_backbone_lr', config.optimizer.sc_backbone_lr), betas=(config.optimizer.beta_1, config.optimizer.beta_2)), 'mode': mode}
-    if vig_param_count > 0:
-        optimizers['vig'] = torch.optim.Adam(vig_parameters, lr=config.optimizer.vig_lr, betas=(config.optimizer.beta_1, config.optimizer.beta_2))
+    if ext_param_count > 0:
+        optimizers['ext'] = torch.optim.Adam(ext_parameters, lr=config.optimizer.ext_lr, betas=(config.optimizer.beta_1, config.optimizer.beta_2))
     return optimizers
 
 def gather_result(value):
@@ -33,7 +33,7 @@ def gather_result(value):
     return value
 
 def save_checkpoint(model, optimizers, epoch, scores, best_ciders, config=None, filename='checkpoint_last.pth', scheduler=None):
-    torch.save({'state_dict': model.module.state_dict(), 'optim_model': optimizers['model'].state_dict(), 'optim_backbone': optimizers['backbone'].state_dict(), 'optim_vig': optimizers['vig'].state_dict() if optimizers.get('vig') else None, 'scores': scores, 'best_ciders': best_ciders, 'epoch': epoch, 'exp_name': '' if config is None else config.exp.name, 'scheduler': [] if scheduler is None else scheduler.state_dict()}, filename)
+    torch.save({'state_dict': model.module.state_dict(), 'optim_model': optimizers['model'].state_dict(), 'optim_backbone': optimizers['backbone'].state_dict(), 'optim_ext': optimizers['ext'].state_dict() if optimizers.get('ext') else None, 'scores': scores, 'best_ciders': best_ciders, 'epoch': epoch, 'exp_name': '' if config is None else config.exp.name, 'scheduler': [] if scheduler is None else scheduler.state_dict()}, filename)
 
 def log_epoch(config, writer, epoch, train_res, split, scores, which='ft_xe'):
     head = 'exp, backbone, imsize, resize, raug, epoch, split, cider, B1, B4, R, M, B2, B3, t-loss, t-reward, b-reward, which, v-loss'

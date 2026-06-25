@@ -1,6 +1,6 @@
 exp:
   seed: 42
-  name: vicap_baseline3
+  name: default
   rank: 0
   ngpus_per_node: 1
   world_size: 1
@@ -12,8 +12,8 @@ exp:
   auto_resume_latest: false
   phase_plan: "${oc.env:KTVIC_PHASE_PLAN,xe_only}"
   selection_split: "${oc.env:KTVIC_SELECTION_SPLIT,valid}"
-  training_regime: "full_xe" # set per-run by training_regimes.py registry; inert default for schema parity
-  init_mode: "full_model" # set per-run by registry; inert (vig warm-starts via exp.checkpoint)
+  training_regime: "full_xe"
+  init_mode: "full_model"
   scst_seed_checkpoint: '${oc.env:KTVIC_SCST_SEED_CHECKPOINT,""}'
   max_train_batches: 0
   stop_after_train_epoch: false
@@ -29,20 +29,20 @@ dataset:
   max_test_items: 0
   ann_root: "${oc.env:DATA_ROOT}/annotations"
   img_root: "${oc.env:DATA_ROOT}"
-  hdf5_path: "${oc.env:DATA_ROOT}/all_splits.h5" # this is used for freezed extractor; fast to train.
+  hdf5_path: "${oc.env:DATA_ROOT}/all_splits.h5"
   vocab_path: "${oc.env:DATA_ROOT}/annotations/vocab.json"
   use_gri_feat: ${model.use_gri_feat}
   use_reg_feat: ${model.use_reg_feat}
 
-  # Split mode: "full" (100% train) | "dev_select" (90/10, Phase A)
-  # Eliminates manual KTVIC_TRAIN_JSON / KTVIC_VALID_JSON env vars.
-  # See core/issues/[Issue] dataset_split_mode_path_confusion_20260610.md
+ 
+ 
+ 
   split_mode: "full"
   dev_split: "seed42_valid10"
 
   transform_cfg:
-    size: [384, 640] # (h, w)
-    resize_name: maxwh # normal, minmax, maxwh; maxwh is computationally friendly for training
+    size: [384, 640]
+    resize_name: maxwh
     randaug: True
 
 model:
@@ -68,7 +68,7 @@ model:
     n_layers: 3
 
   cap_generator:
-    decoder_name: parallel # sequential concat
+    decoder_name: parallel
     n_layers: 3
 
   detector:
@@ -89,11 +89,11 @@ model:
 optimizer:
   warmup_init_lr: 5e-6
   min_lr: 5e-6
-  xe_lr: 5e-6 # fixed to match KTVIC Baseline 3 setup.
+  xe_lr: 5e-6
   sc_lr: 5e-6
   xe_backbone_lr: 5e-6
   sc_backbone_lr: 5e-6
-  xe_detector_lr: 5e-6 # registry-canonical detector LR (== backbone_lr for baseline3); schema parity
+  xe_detector_lr: 5e-6
   sc_detector_lr: 5e-6
   weight_decay: 0.01
   beta_1: 0.9
@@ -106,17 +106,17 @@ optimizer:
   finetune_sc_epochs: 0
   freeze_detector: False
   freeze_backbone: False
-  freeze_grid: False # registry emits this; inert in vig (set_trainability uses freeze_grit), schema parity
-  # --- ViG additions (unused unless a ViG run enables model_vig; base = GRIT baseline) ---
-  vig_lr: 5.0e-5 # new-module LR tier; separate optimizer, no cosine scheduler (ViG_04 I3)
-  freeze_grit: False # True freezes cap_generator+grid_net for ViG (set per ViG run, X1)
-  grad_clip: 0.1 # max-norm gradient clipping (ablations_vig.md §E)
+  freeze_grid: False
+ 
+  ext_lr: 5.0e-5
+  freeze_grit: False
+  grad_clip: 0.1
 
 tracking:
   use_mlflow: true
   use_wandb: false
   project_name: "ktvic-baseline3"
-  run_name: "grit-vicap-baseline3"
+  run_name: "grit-default-baseline3"
   run_name_suffix: '${oc.env:TRACKING_RUN_NAME_SUFFIX,""}'
   use_run_dir_name_suffix: true
   mlflow_tracking_uri: '${oc.env:MLFLOW_TRACKING_URI,""}'
@@ -153,9 +153,9 @@ tracking:
   vietnamese_diacritic_min_rate: 0.30
   gpu_memory_alert_utilization: 0.95
 
-# === ViG module schema (disabled by default → vicap_config reproduces plain GRIT) ===
-# Enabled per stage via ViG run overrides: S1=rrm, S2=lcqm, S3=modulator (ViG_03 rollout).
-model_vig:
+# ===  module schema (disabled by default → default_config reproduces plain GRIT) ===
+# Enabled per stage via  run overrides: S1=rrm, S2=lcqm, S3=modulator (_03 rollout).
+model_ext:
   rrm:
     enabled: false
     n_layers: 1
@@ -165,12 +165,12 @@ model_vig:
     lambda_geo: 1.0
     lambda_vis: 1.0
     alpha_rel_init: 0.0
-    gate_bias_init: -5.0 # fc_alpha3 bias canonical: σ(-5)≈0.007 near-off at init (Review 2 H3)
-    geo_mlp_hidden: 128 # hidden dim for geometry MLP (RelationGeometryBias)
-    dropout: 0.2 # dropout for RelationEncoderLayer
-    use_trigonometric_embedding: false # true => DLCT-style sin/cos expansion (fallback if MLP fails)
-    trig_wave_len: 1000 # wavelength for trigonometric embedding (only if use_trigonometric_embedding)
-    use_sqrt3_norm: false # true => /sqrt(3) variance-preserving for 3-branch fusion (default /sqrt(2))
+    gate_bias_init: -5.0
+    geo_mlp_hidden: 128
+    dropout: 0.2
+    use_trigonometric_embedding: false
+    trig_wave_len: 1000
+    use_sqrt3_norm: false
   lcqm:
     enabled: false
     k_loc: 16
@@ -182,22 +182,22 @@ model_vig:
     slot_init_std: 0.02
     out_scale: 0.01
     beta_loc_init: 0.0
-    gate_bias_init: -1.0 # fc_alpha4 LCQM gate: sigma(-1)≈0.27 (was hardcoded -5.0, silent gate death 2026-06-18)
-    gate_bias_start: -5.0 # schedule: start bias (epoch 0, GRIT identity)
-    gate_bias_end: -1.0 # schedule: end bias (sigma≈0.27, gate open)
-    gate_schedule_epochs: 5 # number of epochs to ramp from start→end
-    lambda_gate: 0.0 # auxiliary gate-openness loss coefficient (0=off, 0.01=light)
-    gate_target_openness: 0.1 # minimum target gate openness for L_gate
-    use_heuristic_bias: false # DeepSeek-V3 style non-differentiable bias (epoch-level)
-    heuristic_step_size: 0.01 # bias adjustment step per epoch
+    gate_bias_init: -1.0
+    gate_bias_start: -5.0
+    gate_bias_end: -1.0
+    gate_schedule_epochs: 5
+    lambda_gate: 0.0
+    gate_target_openness: 0.1
+    use_heuristic_bias: false
+    heuristic_step_size: 0.01
     b_m: -5.0
     modulator:
       enabled: false
       b_eta: -3.0
   fusion:
     beta_rel_init: 0.0
-loss_vig:
-  lambda_loc: 0.5 # CR2 confirmed: all actual runs use 0.5
+loss_ext:
+  lambda_loc: 0.5
   lambda_route: 0.1
   lambda_div: 0.01
   tau: 0.07
@@ -208,7 +208,7 @@ loss_vig:
 hydra:
   run:
     dir: ${exp.run_dir}
-  output_subdir: ./ # directory for saving the yaml configs
+  output_subdir: ./
   job:
     config:
       override_dirname:

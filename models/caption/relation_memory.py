@@ -164,7 +164,7 @@ class RelationMemory(nn.Module):
 
     def __init__(self, config):
         super().__init__()
-        cfg = config.model_vig.rrm
+        cfg = config.model_ext.rrm
         self.d_model = config.model.d_model
         self.n_heads = cfg.n_heads
         self.dropout = getattr(cfg, 'dropout', 0.2)
@@ -173,7 +173,7 @@ class RelationMemory(nn.Module):
         self.layers = nn.ModuleList([RelationEncoderLayer(self.d_model, self.n_heads, self.dropout, ffn_dim) for _ in range(cfg.n_layers)])
         self.alpha_rel = nn.Parameter(torch.tensor(cfg.alpha_rel_init))
 
-    def _init_vig_weights(self):
+    def _init_ext_weights(self):
         pass
 
     def forward(self, R: torch.Tensor, boxes: torch.Tensor, objectness: torch.Tensor=None, return_aux: bool=False):
